@@ -1,4 +1,5 @@
 from lxml.etree import Element, SubElement, CDATA,  tostring
+import sys
 
 time_format = '%Y-%m-%d %H:%M'
 
@@ -6,11 +7,13 @@ time_format = '%Y-%m-%d %H:%M'
 # TODO: expand RRULES
 # create XML from dst/xslt
 # make class from scheduler event with class methods
-def schedulerEvent(id, text, start, end):
+def schedulerEvent(id, start, end, text=""):
         root = Element('event', id=id)
 
         # SubElement does not allow to specify a CDATA element in the text
         # attribute during creation
+        if text is None:
+            text = ""
         ctext = CDATA(text)
         elem_text = Element('text')
         elem_text.text = ctext
@@ -24,9 +27,18 @@ def schedulerEvent(id, text, start, end):
 
 
 def _getEventValue(calevent, key):
-    val = getattr(calevent.instance.vevent, key).value
+    try:
+        val = getattr(calevent.instance.vevent, key).value
+    except AttributeError as e:
+        print(e)
+        return None
+    except:
+        print("Unexpected error:", sys.exc_info()[0])
+        raise
+
     if isinstance(val, CDATA):
         val = val.value
+
     return val
 
 
