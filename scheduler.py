@@ -34,6 +34,7 @@ def _getEventValue(calevent, key):
 
 
 # TODO: implement proxy property to convert between time strings and datetime
+# TODO: implement proxy property to convert between local and utc
 # objects
 class SchedulerEvent(object):
 
@@ -46,6 +47,7 @@ class SchedulerEvent(object):
         self.end = end
         self.text = text
 
+    # TODO to Json/Dict
     def toXml(self, pretty_print=True, offset="-120"):
         # TODO: output with objectify
         root = Element('event', id=self.id)
@@ -58,7 +60,8 @@ class SchedulerEvent(object):
         root.append(elem_text)
 
         start_elem = SubElement(root, 'start_date')
-        start_elem.text = self._localTime(self.start, offset).strftime(time_format)
+        start_elem.text = \
+            self._localTime(self.start, offset).strftime(time_format)
         end_elem = SubElement(root, 'end_date')
         end_elem.text = self._localTime(self.end, offset).strftime(time_format)
         return root
@@ -114,6 +117,10 @@ class SchedulerEvent(object):
 
         # UGLY! maybe create a new one, then merge? only cause of tzinfo is
         # saved in params
+        # use vobject.newFromBehavior() to generate a new dtstart/dtend?
+        # dtstart = vobject.newFromBehavior('dtstart')
+        # dtstart.isNative=True
+        # dtstart.value = datetimeObj
         event.instance.vevent.dtstart.params = {}
         event.instance.vevent.dtend.params = {}
 
@@ -144,7 +151,6 @@ class SchedulerCalendar(list):
         cal_events = caldav_calendar.events()
         return self.fromCalEvents(cal_events)
 
-    # TODO: in container for caldav calendar
     @staticmethod
     def _loadEvents(events):
         for ev in events:
