@@ -5,7 +5,7 @@ from flask import render_template
 from flask import request
 
 import caldav
-from scheduler import SchedulerCalendar
+from scheduler import SchedulerCalendar, SchedulerEvent
 
 
 app = Flask(__name__)
@@ -32,9 +32,25 @@ def getAllEvents():
 # modify single events
 @app.route('/event', methods=['POST'])
 def createOrUpdate():
-    attr_list = ['id', 'start_date', 'end_date', 'text']
+    attr_list = ['id', 'start_date', 'end_date', 'text', '!nativeeditor_status']
     for attr in attr_list:
         print(request.form[attr])
+
+    mode = request.form['!nativeeditor_status']
+
+    start = request.form['start_date']
+    end = request.form['end_date']
+    text = request.form['text']
+    id = request.form['id']
+
+    if mode == 'updated':
+        ev = SchedulerEvent.fromRequest(id, start, end, text)
+        ev.update(cal)
+        return ""
+    elif mode == 'inserted':
+        ev = SchedulerEvent.fromRequest(id, start, end, text)
+        ev.save(cal)
+
     return ""
 
 

@@ -1,7 +1,9 @@
 import sys
 import datetime
+import uuid
 from lxml.etree import Element, SubElement, CDATA,  tostring
-from vobject import icalendar
+from vobject import icalendar, iCalendar
+
 
 time_format = '%Y-%m-%d %H:%M'
 
@@ -44,7 +46,7 @@ class SchedulerEvent(object):
         self.end = end
         self.text = text
 
-    def toXml(self, pretty_print=True):
+    def toXml(self, pretty_print=True, offset="-120"):
         # TODO: output with objectify
         root = Element('event', id=self.id)
 
@@ -56,10 +58,16 @@ class SchedulerEvent(object):
         root.append(elem_text)
 
         start_elem = SubElement(root, 'start_date')
-        start_elem.text = self.start.strftime(time_format)
+        start_elem.text = self._localTime(self.start, offset).strftime(time_format)
         end_elem = SubElement(root, 'end_date')
-        end_elem.text = self.end.strftime(time_format)
+        end_elem.text = self._localTime(self.end, offset).strftime(time_format)
         return root
+
+    @staticmethod
+    def _localTime(dt, offset):
+        offset = int(offset)
+        delta = datetime.timedelta(minutes=-offset)
+        return dt + delta
 
     @staticmethod
     def _utcTime(str_time, offset):
@@ -88,7 +96,16 @@ class SchedulerEvent(object):
         return cls(id, start, end, text)
 
     def save(self, cal):
-        raise NotImplementedError
+        uid = str(uuid.uuid4())
+
+        cal_entry = iCalendar()
+        ev = cal_entry.add('vevent')
+        ev.add('summary').value = self.text
+        ev.add('dtstart').value = self.start
+        ev.add('dtend').value = self.end
+        ev.add('uid').value = uid
+
+        cal.add_event(cal_entry.serialize())
 
     def update(self, cal):
         event = cal.event_by_uid(self.id)
