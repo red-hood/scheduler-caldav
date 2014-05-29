@@ -1,7 +1,16 @@
-from lxml.etree import Element, SubElement, CDATA,  tostring
 import sys
+import datetime
+from lxml.etree import Element, SubElement, CDATA,  tostring
+from vobject import icalendar
 
 time_format = '%Y-%m-%d %H:%M'
+
+ical_scheduler_map = {
+    'id': 'uid',
+    'text': 'summary',
+    'start': 'dtstart',
+    'end': 'dtend',
+}
 
 
 # helper  method
@@ -22,7 +31,10 @@ def _getEventValue(calevent, key):
     return val
 
 
+# TODO: implement proxy property to convert between time strings and datetime
+# objects
 class SchedulerEvent(object):
+
     def __init__(self, id, start, end, text=""):
         if text is None:
             text = ""
@@ -49,22 +61,56 @@ class SchedulerEvent(object):
         end_elem.text = self.end.strftime(time_format)
         return root
 
+    @staticmethod
+    def _utcTime(str_time, offset):
+        utc = icalendar.utc
+        offset = int(offset)
+        delta = datetime.timedelta(minutes=offset)
+        naive_date = datetime.datetime.strptime(str_time, time_format)
+        utc_date = naive_date + delta
+        utc_date = utc_date.replace(tzinfo=utc)
+        return utc_date
+
     @classmethod
     def fromCalEvent(cls, cal_event):
-        ical_scheduler_map = {
-            'id': 'uid',
-            'text': 'summary',
-            'start': 'dtstart',
-            'end': 'dtend',
-        }
-
         scheduler_vals = {key: _getEventValue(cal_event, val) for key, val
                           in ical_scheduler_map.iteritems()}
         return cls(**scheduler_vals)
 
+    # TODO how to get the timeshift in post parameters?
+    @classmethod
+    def fromRequest(cls, id, str_start, str_end, text, offset='-120'):
+        id = unicode(id)
+        text = unicode(text)
+        offset = int(offset)
+        start = cls._utcTime(str_start, offset)
+        end = cls._utcTime(str_end, offset)
+        return cls(id, start, end, text)
+
+    def save(self, cal):
+        raise NotImplementedError
+
+    def update(self, cal):
+        event = cal.event_by_uid(self.id)
+        event.load()
+        # TODO how to create a new dtstart entry?
+
+        # UGLY! maybe create a new one, then merge? only cause of tzinfo is
+        # saved in params
+        event.instance.vevent.dtstart.params = {}
+        event.instance.vevent.dtend.params = {}
+
+        event.instance.vevent.dtstart.value = self.start
+        event.instance.vevent.dtend.value = self.end
+        event.instance.vevent.summary.value = self.text
+
+        event.save()
+
 
 # container for the ScheduverEvents
+# TODO handle timeshift parameter
 class SchedulerCalendar(list):
+
     def __init__(self, scheduler_events):
         super(SchedulerCalendar, self).__init__(scheduler_events)
 
