@@ -2,13 +2,13 @@ import sys
 import datetime
 import uuid
 from lxml.etree import Element, SubElement, CDATA,  tostring
+from lxml import objectify
 from vobject import icalendar, iCalendar
 
 
 time_format = '%Y-%m-%d %H:%M'
 
 ical_scheduler_map = {
-    'id': 'uid',
     'text': 'summary',
     'start': 'dtstart',
     'end': 'dtend',
@@ -33,7 +33,6 @@ def _getEventValue(calevent, key):
     return val
 
 
-# TODO: implement proxy property to convert between time strings and datetime
 # TODO: implement proxy property to convert between local and utc
 # objects
 class SchedulerEvent(object):
@@ -86,6 +85,8 @@ class SchedulerEvent(object):
     def fromCalEvent(cls, cal_event):
         scheduler_vals = {key: _getEventValue(cal_event, val) for key, val
                           in ical_scheduler_map.iteritems()}
+        id = cal_event.url.url_parsed.path
+        scheduler_vals.update({'id': id})
         return cls(**scheduler_vals)
 
     # TODO how to get the timeshift in post parameters?
@@ -98,20 +99,26 @@ class SchedulerEvent(object):
         end = cls._utcTime(str_end, offset)
         return cls(id, start, end, text)
 
-    def save(self, cal):
-        uid = str(uuid.uuid4())
-
+    def create(self, cal):
         cal_entry = iCalendar()
         ev = cal_entry.add('vevent')
         ev.add('summary').value = self.text
         ev.add('dtstart').value = self.start
         ev.add('dtend').value = self.end
+        uid = unicode(uuid.uuid4())
         ev.add('uid').value = uid
 
-        cal.add_event(cal_entry.serialize())
+        cal_event = cal.add_event(cal_entry.serialize())
 
+        # TODO use url here as scheduler id, not uid
+        # should be decoupled
+        # update own id from caldav uid
+        self.id = cal_event.url.url_parsed.path
+
+    # TODO set modified date and increase sequence
     def update(self, cal):
-        event = cal.event_by_uid(self.id)
+        # TODO SEC attacker migh pass URL of other calendar
+        event = cal.event_by_url(self.id)
         event.load()
         # TODO how to create a new dtstart entry?
 
@@ -123,12 +130,23 @@ class SchedulerEvent(object):
         # dtstart.value = datetimeObj
         event.instance.vevent.dtstart.params = {}
         event.instance.vevent.dtend.params = {}
-
         event.instance.vevent.dtstart.value = self.start
         event.instance.vevent.dtend.value = self.end
         event.instance.vevent.summary.value = self.text
-
         event.save()
+
+    def delete(self, cal):
+        event = cal.event_by_url(self.id)
+        event.delete()
+
+    # TODO in view
+    @staticmethod
+    def XmlResponse(mode, id, tid):
+        E = objectify.ElementMaker(annotate=False, namespace=None, nsmap=None)
+        root = E.data(
+            E.action(type=mode, sid=id, tid=tid)
+        )
+        return tostring(root)
 
 
 # container for the ScheduverEvents
