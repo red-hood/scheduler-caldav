@@ -10,47 +10,65 @@ from scheduler import SchedulerCalendar, SchedulerEvent
 app = Flask(__name__)
 app.debug = True
 
+# TODO read from config file
+cal_user = 'system'
+
+def get_system_cal(cal_name):
+    # TODO custom context to hold client and calendar
+    global cal_user
+    return caldav.Calendar(client, '/' + cal_user + '/' + cal_name + '.ics/')
+
 
 # TODO use different calendars
-url = 'http://test:test@localhost:5232/test/Calendar.ics/'
+url = 'http://system:system@localhost:5232/test/Calendar.ics/'
 client = caldav.DAVClient(url)
-cal = caldav.Calendar(client, '/test/calendar.ics/')
 
 
-@app.route('/')
-def index():
-    return render_template('index.html')
+@app.route('/calendar/<cal>')
+def calendar(cal):
+    return render_template('index.html', cal=cal)
+
+
+# fake auth resource to test
+@app.route('/auth')
+def auth(request):
+    cookie = request.cookies['sid']
+    print cookie
 
 
 # read only resource to retrieve all events
-@app.route('/events')
-def getAllEvents():
-    sched_cal = SchedulerCalendar.fromCalendar(cal)
+@app.route('/events/<cal>')
+def events(cal):
+    # BEHOLD!
+    dav_cal = get_system_cal(cal)
+    sched_cal = SchedulerCalendar.fromCalendar(dav_cal)
     return sched_cal.toXMLString()
 
 
 # modify single events
-@app.route('/event', methods=['POST'])
-def createOrUpdate():
+# TODO check if id/ref belongs to calendars, otherwise security hole!
+@app.route('/event/<cal>', methods=['POST'])
+def event(cal):
+    dav_cal = get_system_cal(cal)
     start = request.form['start_date']
     end = request.form['end_date']
     text = request.form['text']
     id = request.form['id']
+    tid = id
 
     mode = request.form['!nativeeditor_status']
-    tid = id
 
     # TODO views for update and delete, with different status codes
     if mode == 'updated':
         ev = SchedulerEvent.fromRequest(id, start, end, text)
-        ev.update(cal)
+        ev.update(dav_cal)
         return Response(
             SchedulerEvent.XmlResponse(mode, id, tid),
             status=200,
             mimetype='application/xml')
     elif mode == 'inserted':
         ev = SchedulerEvent.fromRequest(id, start, end, text)
-        ev.create(cal)
+        ev.create(dav_cal)
         # use original id only in reponse
         tid = ev.id
         return Response(
@@ -59,7 +77,7 @@ def createOrUpdate():
             mimetype='application/xml')
     elif mode == 'deleted':
         ev = SchedulerEvent.fromRequest(id, start, end, text)
-        ev.delete(cal)
+        ev.delete(dav_cal)
         return Response(
             SchedulerEvent.XmlResponse(mode, id, tid),
             status=200,
