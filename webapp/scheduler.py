@@ -128,6 +128,7 @@ class SchedulerEvent(object):
         # dtstart = vobject.newFromBehavior('dtstart')
         # dtstart.isNative=True
         # dtstart.value = datetimeObj
+        # use dict.update to merge
         event.instance.vevent.dtstart.params = {}
         event.instance.vevent.dtend.params = {}
         event.instance.vevent.dtstart.value = self.start
