@@ -1,0 +1,13 @@
+was muss portal-server können?
+* liste aller user mit kalenderberechtigungen
+* liste aller kalender für einen user zurückgeben, mit berechtigung
+
+* reponse für einen kalender r/w/none  +
+* liste aller kalender für einen user
+* struktur groups/:name/<privat|public>
+
+* liste aller gruppen? -> besser keine interne struktur in kalender-adapter
+
+
+
+

@@ -1,0 +1,20 @@
+{
+    "users": {
+        "user1": {
+            "calendar": {
+                "group-haustechnik-private": "rw",
+                "group-haustechnik-public": "rw",
+                "group/haustechnik/public": "rw",
+                "group-garten-public": "r"
+            }
+        },
+        "user2": {
+            "calendar": {
+                "group-haustechnik-public": "rw",
+                "group-garten-public": "rw",
+                "group-garten-private": "rw"
+            }
+        }
+
+    }
+}
