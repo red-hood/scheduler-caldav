@@ -63,6 +63,8 @@ class SchedulerEvent(object):
             self._localTime(self.start, offset).strftime(time_format)
         end_elem = SubElement(root, 'end_date')
         end_elem.text = self._localTime(self.end, offset).strftime(time_format)
+        #calname_elem = SubElement(root, 'calname')
+        #calname_elem.text = calname
         return root
 
     @staticmethod
@@ -165,6 +167,7 @@ class SchedulerCalendar(list):
                   hasattr(ev.instance, 'vevent')]
         return cls(events)
 
+    # TODO make caldav_calendar a structure holding the calname
     @classmethod
     def fromCalendar(self, caldav_calendar):
         cal_events = caldav_calendar.events()
