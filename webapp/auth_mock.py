@@ -11,7 +11,7 @@ with open('./acl.json') as acl_file:
     acl = json.load(acl_file)
 
 
-@app.route('/user/<user>/permissions/calendar')
+@app.route('/user/<user>/permissions/calendars')
 def user_permission(user):
     try:
         return json.dumps(acl['users'][user]['calendar'])
@@ -19,7 +19,7 @@ def user_permission(user):
         abort(404)
 
 
-@app.route("/user/<user>/permissions/calendar/<cal>")
+@app.route("/user/<user>/permissions/calendars/<cal>")
 def cal_permissions(user, cal):
     try:
         return acl['users'][user]['calendar'][cal]
