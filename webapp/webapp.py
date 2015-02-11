@@ -22,7 +22,7 @@ requests.hooks={"response": requests_raise}
 # TODO read from config file
 cal_user = 'system'
 permission_url = 'http://localhost:5001'
-permission_templ = "/user/{}/permissions/calendar/{}"
+permission_templ = "/user/{}/permissions/calendars/{}"
 auth_templ = "/user/auth"
 url = 'http://system:system@localhost:5232/test/Calendar.ics/'
 client = caldav.DAVClient(url)
