@@ -34,6 +34,14 @@ def cal_permissions(user, cal):
         abort(404)
 
 
+@api_route('/user/<user>/id')
+def user_id(user):
+    try:
+        return acl['users'][user]['id']
+    except KeyError:
+        abort(404)
+
+
 @api_route('/user/auth', methods=['POST', 'GET'])
 def auth():
     method = request.method

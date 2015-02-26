@@ -6,14 +6,16 @@
                 "group-haustechnik-public": "rw",
                 "group/haustechnik/public": "rw",
                 "group-garten-public": "r"
-            }
+            },
+	    "id": "ws-user1"
         },
         "user2": {
             "calendar": {
                 "group-haustechnik-public": "rw",
                 "group-garten-public": "rw",
                 "group-garten-private": "rw"
-            }
+            },
+	    "id": "ws-user2"
         }
 
     },
