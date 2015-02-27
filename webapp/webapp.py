@@ -4,38 +4,57 @@ from flask import Flask
 from flask import render_template, Response, request, url_for, make_response, abort
 
 import caldav
-import urlparse
-import json
 import requests as requests_native
 import urllib
+import os
+
+try:
+    import ConfigParser as configparser
+except:
+    import configparser
 
 from scheduler import SchedulerCalendar, SchedulerEvent
+
 
 def requests_raise(response, *args, **kwargs):
     response.raise_for_status()
 
 app = Flask(__name__)
 app.debug = True
-requests = requests_native.Session()
-requests.hooks={"response": requests_raise}
-
 # TODO read from config file
-cal_user = 'system'
-permission_url = 'http://localhost:5001'
-permission_templ = "/user/{}/permissions/calendars/{}"
-auth_templ = "/user/auth"
-url = 'http://system:system@localhost:5232/test/Calendar.ics/'
-client = caldav.DAVClient(url)
+cal_user = 'ws2'
+cal_user_pw = '2342'
+auth_url_templ = "http://localhost:5008/api/auth"
+permission_url_templ = "http://localhost:5008/api/user/{user}/permissions/calendars/{calendar}"
+# TODO add authentication with urllib/caldav client lib
+cal_client_url_templ = "http://{cal_user}:{cal_user_pw}@localhost:5232/caldav/{cal_user}"
+cal_path_templ = "/caldav/{cal_user}/{calendar}"
 sc_name = "sid"
 
 
+# TODO can we do a client connection w/o a calendar?
+def get_client():
+    client_url = cal_client_url_templ.format(
+        cal_user=cal_user,
+        cal_user_pw=cal_user_pw,
+    )
+    return caldav.DAVClient(client_url)
+
+
+def get_config(conf_file='./config'):
+    file_name = os.environ['CALDAV_MW_CONFIG'] or conf_file
+    with open(file_name) as f:
+        config = configparser.SafeConfigParser(f)
+    return config
+
 def get_user(req):
-    auth_url = urlparse.urljoin(permission_url, auth_templ)
-    if sc_name in req.cookies:
-        session_cookie = req.cookies[sc_name]
-        cookies = {sc_name: session_cookie}
-        response = requests.get(auth_url, cookies=cookies)
-        return response.content
+    session_cookie = req.cookies[sc_name]
+    auth_url = auth_url_templ.format(session_cookie)
+    cookies = {sc_name: session_cookie}
+    response = requests.get(auth_url, cookies=cookies)
+    app.logger.debug('Got user {} for session cookie {}.'.format(
+        session_cookie, response))
+    return response.content
 
 
 # TODO cal name in model
@@ -43,13 +62,11 @@ def check_permission(cal, user, want):
     # TODO implicit unsafety, like Jinja2
     cal_qt = urllib.quote_plus(cal)
     user_qt = urllib.quote_plus(user)
-    permission_path = permission_templ.format(user_qt, cal_qt)
-    req_url = urlparse.urljoin(permission_url, permission_path)
-    resp = requests.get(req_url)
-    try:
-        return want in resp.content
-    except:
-        return False
+    permission_url = permission_url_templ.format(user=user_qt, calendar=cal_qt)
+    resp = requests.get(permission_url)
+    app.logger.debug('Got permission {} for user {} wanting {}.'.format(
+        resp, user, want))
+    return want in resp.content
 
 
 def check_user_permission(cal, req, want):
@@ -59,13 +76,16 @@ def check_user_permission(cal, req, want):
     except:
         return False
 
-# TODO use different calendars
+
+def get_cal_path(cal_user, cal_name):
+    return cal_path_templ.format(cal_user=cal_user, calendar=cal_name)
 
 
 def get_system_cal(cal_name):
     # TODO custom context to hold client and calendar
     global cal_user
-    return caldav.Calendar(client, '/' + cal_user + '/' + cal_name + '.ics/')
+    cal_path = get_cal_path(cal_user, cal_name)
+    return caldav.Calendar(client, cal_path)
 
 
 @app.route('/calendar/<cal>')
@@ -92,7 +112,6 @@ def quote(text, quote_mark='"'):
 
 @app.route('/events/<cal>')
 def events(cal):
-    # BEHOLD!
     dav_cal = get_system_cal(cal)
     if check_user_permission(cal, request, 'r'):
         # TODO have SchedulerCalendar handle name resolution
@@ -147,4 +166,8 @@ def event(cal):
 
 
 if __name__ == '__main__':
+    requests = requests_native.Session()
+    requests.hooks = {"response": requests_raise}
+    config = get_config()
+    client = get_client()
     app.run()
